@@ -105,10 +105,12 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 				BigDecimal taxAmt = m_Tax.calculateTax(base_amt, false, m_Currency.getStdPrecision());
 				BigDecimal exAmt = amt.subtract(base_amt).subtract(taxAmt);							
 				//	Error
+				
+				//Carlos Parada Add Validation When Amt is Equals To Zero
 				if(base_amt.abs()
 						.add(taxAmt.abs())
 						.add(exAmt.abs())
-						.compareTo(amt.abs()) > 0)
+						.compareTo(amt.abs()) > 0 && amt.abs()!=Env.ZERO)
 					//Dixon Martinez
 					//Modification of code to make translations of the elements.
 					return  "(" + Msg.translate(m_CashLine.getCtx(), "A_Base_Amount") + 
