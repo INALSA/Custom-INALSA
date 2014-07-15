@@ -54,8 +54,10 @@ public class M_Production_Run extends SvrProcess {
 	private boolean mustBeStocked = false;
 	
 	/** Locator to */
-	private int p_M_LocatorTo_ID = 0;
+	private int p_M_LocatorFrom_ID = 0;
 	
+	/** Product BOM*/
+	int p_PP_Product_BOM_ID = 0 ;
 	private int m_level = 0;
 
 	/**
@@ -71,8 +73,12 @@ public class M_Production_Run extends SvrProcess {
 				mustBeStocked = ((String) para[i].getParameter()).equals("Y");
 			
 			/** 2014-07-10 Carlos Parada Add Locator to Process Create Production */
-			else if (name.equals("M_LocatorTo_ID"))
-				p_M_LocatorTo_ID = para[i].getParameterAsInt();
+			else if (name.equals("M_LocatorFrom_ID"))
+				p_M_LocatorFrom_ID = para[i].getParameterAsInt();
+			/** 2014-07-14 Carlos Parada Add BOM Product */
+			else if (name.equals("PP_Product_BOM_ID"))
+				p_PP_Product_BOM_ID = para[i].getParameterAsInt();
+			
 			/** End Carlos Parada*/
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + name);
@@ -95,6 +101,10 @@ public class M_Production_Run extends SvrProcess {
 		/**
 		 * No Action
 		 */
+		
+		if (p_PP_Product_BOM_ID == 0)
+			new AdempiereUserError("@Invalid@ @PP_Product_BOM_ID@");
+		
 		if (production.isProcessed()) 
 		{
 			log.info("Already Posted");
@@ -143,7 +153,7 @@ public class M_Production_Run extends SvrProcess {
 						{
 							/** 2014-07-10 Carlos Parada set Locator to Process Create Production */
 							//MLocator locator = MLocator.get(getCtx(), pline.getM_Locator_ID());
-							MLocator locator = MLocator.get(getCtx(), (p_M_LocatorTo_ID == 0 ? pline.getM_Locator_ID() : p_M_LocatorTo_ID ));
+							MLocator locator = MLocator.get(getCtx(), (p_M_LocatorFrom_ID == 0 ? pline.getM_Locator_ID() : p_M_LocatorFrom_ID ));
 							/** End Carlos Parada*/
 							
 							String MovementType = MTransaction.MOVEMENTTYPE_ProductionPlus;					
@@ -227,7 +237,10 @@ public class M_Production_Run extends SvrProcess {
 	 */
 	private int explosion(X_M_ProductionPlan pp , MProduct product , BigDecimal qty , int line) throws Exception
 	{
-		MPPProductBOM bom = MPPProductBOM.getDefault(product, get_TrxName());
+		//MPPProductBOM bom = MPPProductBOM.getDefault(product, get_TrxName());
+		/** 2014-07-14 Carlos Parada Set Material List from Parameter */ 
+		MPPProductBOM bom = MPPProductBOM.get(getCtx(), p_PP_Product_BOM_ID);
+		/** End Carlos Parada */ 
 		if(bom == null )
 		{	
 			raiseError("Do not exist default BOM for this product :" 
@@ -257,7 +270,7 @@ public class M_Production_Run extends SvrProcess {
 				pl.setM_Product_ID(bomline.getM_Product_ID());
 				/** 2014-07-10 Carlos Parada set Locator to Process Create Production */
 				//pl.setM_Locator_ID(pp.getM_Locator_ID());
-				pl.setM_Locator_ID((p_M_LocatorTo_ID == 0 ? pp.getM_Locator_ID() : p_M_LocatorTo_ID ));
+				pl.setM_Locator_ID((p_M_LocatorFrom_ID == 0 ? pp.getM_Locator_ID() : p_M_LocatorFrom_ID ));
 				/** End Carlos Parada*/
 				
 				pl.setM_ProductionPlan_ID(pp.getM_ProductionPlan_ID());
