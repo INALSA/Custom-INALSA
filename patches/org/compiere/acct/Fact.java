@@ -17,6 +17,7 @@
 package org.compiere.acct;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -166,6 +167,76 @@ public final class Fact
 	}	//	createLine
 
 	/**
+	 * 	Created By Jorge Colmenarez 2014-07-29
+	 *	Create and convert Fact Line whit a Custom Date
+	 *	for Convert Currency by the Custom Date.
+	 *  Used to create a DR and/or CR entry
+	 *
+	 *	@param  docLine     the document line or null
+	 *  @param  account     if null, line is not created
+	 *  @param  C_Currency_ID   the currency
+	 *  @param  debitAmt    debit amount, can be null
+	 *  @param  creditAmt  credit amount, can be null
+	 *  @param  CustomDate	Custom Date, can not be null  
+	 *  @return Fact Line
+	 */
+	public FactLine createLineWithCustomDate (DocLine docLine, MAccount account,
+		int C_Currency_ID, BigDecimal debitAmt, BigDecimal creditAmt, Timestamp CustomDate)
+	{
+	//	log.fine("createLine - " + account	+ " - Dr=" + debitAmt + ", Cr=" + creditAmt);
+
+		//  Data Check
+		if (account == null)
+		{
+			log.info("No account for " + docLine 
+				+ ": Amt=" + debitAmt + "/" + creditAmt 
+				+ " - " + toString());			
+			return null;
+		}
+		//
+		FactLine line = new FactLine (m_doc.getCtx(), m_doc.get_Table_ID(), 
+			m_doc.get_ID(),
+			docLine == null ? 0 : docLine.get_ID(), m_trxName);
+		//  Set Info & Account
+		line.setDocumentInfo(m_doc, docLine);
+		line.setPostingType(m_postingType);
+		line.setAccount(m_acctSchema, account);
+		//	2014-07-15 Carlos Parada set C_Charge_ID
+		if (docLine != null)
+			if (docLine.getC_Charge_ID()!=0)
+				line.set_ValueOfColumn("C_Charge_ID",docLine.getC_Charge_ID());
+		
+		if (docLine == null && m_doc != null)
+			if (m_doc.getC_Charge_ID()!=0)
+				line.set_ValueOfColumn("C_Charge_ID",m_doc.getC_Charge_ID());
+		
+		//End Carlos Parada
+
+		//  Amounts - one needs to not zero
+		if (!line.setAmtSource(C_Currency_ID, debitAmt, creditAmt))
+		{
+			if (docLine == null || docLine.getQty() == null || docLine.getQty().signum() == 0)
+			{
+				log.fine("Both amounts & qty = 0/Null - " + docLine		
+					+ " - " + toString());			
+				return null;
+			}
+			log.fine("Both amounts = 0/Null, Qty=" + docLine.getQty() + " - " + docLine		
+				+ " - " + toString());			
+		}
+		//  Convert
+		line.convertCustomDate(CustomDate);
+		//  Optionally overwrite Acct Amount
+		if (docLine != null 
+			&& (docLine.getAmtAcctDr() != null || docLine.getAmtAcctCr() != null))
+			line.setAmtAcct(docLine.getAmtAcctDr(), docLine.getAmtAcctCr());
+		//
+		log.fine(line.toString());
+		add(line);
+		return line;
+	}	//	createLine
+
+	/**
 	 *  Add Fact Line
 	 *  @param line fact line
 	 */
@@ -207,10 +278,33 @@ public final class Fact
 	 *	Create and convert Fact Line.
 	 *  Used to create either a DR or CR entry
 	 *
+	 *	@param  docLine     Document Line or null
+	 *  @param  accountDr   Account to be used if Amt is DR balance
+	 *  @param  accountCr   Account to be used if Amt is CR balance
+	 *  @param  C_Currency_ID Currency
+	 *  @param  Amt if negative Cr else Dr
+	 *  @return FactLine
+	 */
+	public FactLine createLineWithCustomDate (DocLine docLine, MAccount accountDr, MAccount accountCr,
+		int C_Currency_ID, BigDecimal Amt, Timestamp CustomDate)
+	{
+		if (Amt.signum() < 0)
+			return createLineWithCustomDate (docLine, accountCr, C_Currency_ID, null, Amt.abs(),CustomDate);
+		else
+			return createLineWithCustomDate (docLine, accountDr, C_Currency_ID, Amt, null,CustomDate);
+	}   //  createLineWithCustomDate
+
+	/**
+	 * 	Created By Jorge Colmenarez 2014-07-29
+	 *	Create and convert Fact Line whit a Custom Date
+	 *	for Convert Currency by the Custom Date.
+	 *  Used to create either a DR or CR entry
+	 *
 	 *	@param  docLine Document line or null
 	 *  @param  account   Account to be used
 	 *  @param  C_Currency_ID Currency
 	 *  @param  Amt if negative Cr else Dr
+	 *  @param	CustomDate	Custom Date, can not be null
 	 *  @return FactLine
 	 */
 	public FactLine createLine (DocLine docLine, MAccount account,
@@ -221,6 +315,28 @@ public final class Fact
 		else
 			return createLine (docLine, account, C_Currency_ID, Amt, null);
 	}   //  createLine
+
+	/**
+	 * 	Created By Jorge Colmenarez 2014-07-29
+	 *	Create and convert Fact Line whit a Custom Date
+	 *	for Convert Currency by the Custom Date.
+	 *  Used to create either a DR or CR entry
+	 *
+	 *	@param  docLine Document line or null
+	 *  @param  account   Account to be used
+	 *  @param  C_Currency_ID Currency
+	 *  @param  Amt if negative Cr else Dr
+	 *  @param	CustomDate	Custom Date, can not be null
+	 *  @return FactLine
+	 */
+	public FactLine createLineWithCustomDate (DocLine docLine, MAccount account,
+		int C_Currency_ID, BigDecimal Amt, Timestamp CustomDate)
+	{
+		if (Amt.signum() < 0)
+			return createLineWithCustomDate (docLine, account, C_Currency_ID, null, Amt.abs(),CustomDate);
+		else
+			return createLineWithCustomDate (docLine, account, C_Currency_ID, Amt, null,CustomDate);
+	}   //  createLineWithCustomDate
 
 	/**
 	 *  Is Posting Type

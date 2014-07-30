@@ -458,6 +458,9 @@ public abstract class Doc
 	private int 				m_C_CashBook_ID = -1;
 	/** Currency					*/
 	private int					m_C_Currency_ID = -1;
+	/**	Created By Jorge Colmenarez  
+	 * Conversion Type					*/
+	private int					m_C_ConversionType_ID = -1;
 
 	/**	Contained Doc Lines			*/
 	protected DocLine[]			p_lines;
@@ -1654,6 +1657,38 @@ public abstract class Doc
 	}	//	getDescription
 	
 	/**
+	 * 	Changed By Jorge Colmenarez 2014-07-29
+	 * 	Get C_ConversionType_ID
+	 *	@return ConversionType
+	 */
+	public int getC_ConversionType_ID()
+	{
+		if (m_C_ConversionType_ID == -1)
+		{
+			int index = p_po.get_ColumnIndex("C_ConversionType_ID");
+			if (index != -1)
+			{
+				Integer ii = (Integer)p_po.get_Value(index);
+				if (ii != null)
+					m_C_ConversionType_ID = ii.intValue();
+			}
+			if (m_C_ConversionType_ID == -1)
+				m_C_ConversionType_ID = 0;
+		}
+		return m_C_ConversionType_ID;
+	}	//	getC_ConversionType_ID
+	
+	/**
+	 * 	Created By Jorge Colmenarez 2014-07-29
+	 * 	Set C_ConversionType_ID
+	 *	@param C_ConversionType_ID id
+	 */
+	public void setC_ConversionType_ID (int C_ConversionType_ID)
+	{
+		m_C_ConversionType_ID = C_ConversionType_ID;
+	}	//	setC_ConversionType_ID
+	
+	/**
 	 * 	Get C_Currency_ID
 	 *	@return currency
 	 */
@@ -1718,22 +1753,6 @@ public abstract class Doc
 	{
 		m_TaxIncluded = ti;
 	}	//	setIsTaxIncluded
-	
-	/**
-	 * 	Get C_ConversionType_ID
-	 *	@return ConversionType
-	 */
-	public int getC_ConversionType_ID()
-	{
-		int index = p_po.get_ColumnIndex("C_ConversionType_ID");
-		if (index != -1)
-		{
-			Integer ii = (Integer)p_po.get_Value(index);
-			if (ii != null)
-				return ii.intValue();
-		}
-		return 0;
-	}	//	getC_ConversionType_ID
 	
 	/**
 	 * 	Get GL_Category_ID

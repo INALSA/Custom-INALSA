@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Properties;
 import java.util.logging.Level;
 
@@ -705,6 +706,54 @@ public final class FactLine extends X_Fact_Acct
 			getDateAcct(), C_ConversionType_ID, m_doc.getAD_Client_ID(), AD_Org_ID));
 		return true;
 	}	//	convert
+
+	/**
+	 * 	Created By Jorge Colmenarez 2014-07-29
+	 *  Convert to Accounted Currency 
+	 *  Filter by Custom Date and not by DateAcct
+	 *  @return true if converted
+	 */
+	public boolean convertCustomDate (Timestamp CustomDate)
+	{
+		//  Document has no currency
+		if (getC_Currency_ID() == Doc.NO_CURRENCY)
+			setC_Currency_ID (m_acctSchema.getC_Currency_ID());
+
+		if (m_acctSchema.getC_Currency_ID() == getC_Currency_ID())
+		{
+			setAmtAcctDr (getAmtSourceDr());
+			setAmtAcctCr (getAmtSourceCr());
+			return true;
+		}
+		//	Get Conversion Type from Line or Header
+		int C_ConversionType_ID = 0;
+		int AD_Org_ID = 0;
+		if (m_docLine != null)			//	get from line
+		{
+			C_ConversionType_ID = m_docLine.getC_ConversionType_ID();
+			AD_Org_ID = m_docLine.getAD_Org_ID();
+		}
+		if (C_ConversionType_ID == 0)	//	get from header
+		{
+			if (m_doc == null)
+			{
+				log.severe ("No Document VO");
+				return false;
+			}
+			C_ConversionType_ID = m_doc.getC_ConversionType_ID();
+			if (AD_Org_ID == 0)
+				AD_Org_ID = m_doc.getAD_Org_ID();
+		}
+		setAmtAcctDr (MConversionRate.convert (getCtx(),
+			getAmtSourceDr(), getC_Currency_ID(), m_acctSchema.getC_Currency_ID(),
+			CustomDate, C_ConversionType_ID, m_doc.getAD_Client_ID(), AD_Org_ID));
+		if (getAmtAcctDr() == null)
+			return false;
+		setAmtAcctCr (MConversionRate.convert (getCtx(),
+			getAmtSourceCr(), getC_Currency_ID(), m_acctSchema.getC_Currency_ID(),
+			CustomDate, C_ConversionType_ID, m_doc.getAD_Client_ID(), AD_Org_ID));
+		return true;
+	}	//	convertCustomDate
 
 	/**
 	 * 	Get Account
