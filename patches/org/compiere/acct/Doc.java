@@ -760,9 +760,11 @@ public abstract class Doc
 
 		//	Yamel Senih 2013-05-08 22:46:34
 		//	No Posted when parameter "Posted" is false
+		// 	Changed by Jorge Colmenarez 2014-08-07
+		// 	Replace name Posted By IsAccounted
 		if(getC_DocType_ID() != 0){
 			MDocType doc = MDocType.get(m_ctx, getC_DocType_ID());
-			if(!doc.get_ValueAsBoolean("Posted"))
+			if(!doc.get_ValueAsBoolean("IsAccounted"))
 				return STATUS_Posted;	
 		}
 		//	End Yamel Senih

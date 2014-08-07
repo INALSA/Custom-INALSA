@@ -149,7 +149,9 @@ public class Doc_MatchPO extends Doc
 		
 		//	Yamel Senih 2013-05-08 22:46:34
 		//	No Posted when parameter "Posted" is false
-		if(!((MDocType) inOut.getC_DocType()).get_ValueAsBoolean("Posted"))
+		//	Changed by Jorge Colmenarez 2014-08-07
+		//	Replace name Posted by IsAccounted
+		if(!((MDocType) inOut.getC_DocType()).get_ValueAsBoolean("IsAccounted"))
 			return facts;	
 		//	End Yamel Senih
 		
