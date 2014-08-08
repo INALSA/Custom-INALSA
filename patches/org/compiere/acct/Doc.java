@@ -458,9 +458,10 @@ public abstract class Doc
 	private int 				m_C_CashBook_ID = -1;
 	/** Currency					*/
 	private int					m_C_Currency_ID = -1;
-	/**	Created By Jorge Colmenarez  
-	 * Conversion Type					*/
+	/**	Created By Jorge Colmenarez 2014-08-08
+	 * 	Conversion Type					*/
 	private int					m_C_ConversionType_ID = -1;
+	/**	End Jorge Colmenarez */
 
 	/**	Contained Doc Lines			*/
 	protected DocLine[]			p_lines;
@@ -1314,8 +1315,32 @@ public abstract class Doc
 	public static final int     ACCTTYPE_CommitmentOffset = 111;
 	/** GL Accounts - Commitment Offset	Sales */
 	public static final int     ACCTTYPE_CommitmentOffsetSales = 112;
+	/** 
+	 * Created By Jorge Colmenarez 2014-08-08 
+	 * Product Accounts - Expense Account */
+	public static final int     ACCTTYPE_ExpenseAcct = 113;	
 
+	public DocLine line = null;
 
+	/**	End Jorge Colmenarez */
+
+	
+	/**
+	 * 	Created By Jorge Colmenarez 2014-08-08 
+	 *	Get the Valid Combination id for Accounting Schema and DocLine 
+	 *  @param AcctType see ACCTTYPE_*
+	 *  @param as accounting schema
+	 *  @param dline Object DocLine
+	 *  @return C_ValidCombination_ID
+	 */
+	public int getValidCombination_ID (int AcctType, MAcctSchema as,DocLine dline)
+	{
+		line = dline;
+		return getValidCombination_ID (AcctType,as);
+	}
+	
+	
+	
 	/**
 	 *	Get the Valid Combination id for Accounting Schema
 	 *  @param AcctType see ACCTTYPE_*
@@ -1493,6 +1518,14 @@ public abstract class Doc
 			sql = "SELECT CommitmentOffsetSales_Acct FROM C_AcctSchema_GL WHERE C_AcctSchema_ID=?";
 			para_1 = -1;
 		}
+		//	Created by Jorge Colmenarez 2014-08-08 
+		//	Add Validation for ACCTTYPE_ExpenseAcct
+		else if (AcctType == ACCTTYPE_ExpenseAcct)
+		{
+			sql = "SELECT P_Expense_Acct FROM M_Product_Acct WHERE M_Product_ID=? and C_AcctSchema_ID=?";
+			para_1 = line.getM_Product_ID();
+		}
+		//	End Jorge Colmenarez
 
 		else
 		{
@@ -1557,6 +1590,25 @@ public abstract class Doc
 		//	Return Account
 		MAccount acct = MAccount.get (as.getCtx(), C_ValidCombination_ID);
 		return acct;
+	}	//	getAccount
+	
+
+	/**
+	 *	Created by Jorge Colmenarez 2014-08-08 
+	 *	Get the account for Accounting Schema whit object DocLine
+	 *  @param AcctType see ACCTTYPE_*
+	 *  @param as accounting schema
+	 *  @param dline Object DocLine
+	 *  @return Account
+	 */
+	public final MAccount getAccount (int AcctType, MAcctSchema as, DocLine dline)
+	{
+		int C_ValidCombination_ID = getValidCombination_ID(AcctType, as, dline);
+		if (C_ValidCombination_ID == 0)
+			return null;
+		//	Return Account
+		MAccount acct = MAccount.get (as.getCtx(), C_ValidCombination_ID);
+		return acct;		
 	}	//	getAccount
 
 	
@@ -2180,7 +2232,7 @@ public abstract class Doc
 	}	//	getC_Campaign_ID
 
 	/**
-	 * 	Get M_Product_ID
+	 * 	Get M_Product_ID from m_M_Product_ID
 	 *	@return Product
 	 */
 	public int getM_Product_ID()
