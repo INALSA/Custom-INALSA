@@ -91,7 +91,11 @@ public class Doc_Inventory extends Doc
 		{
 			MInventoryLine line = lines[i];
 			
-			m_MaskQtyInternalUse = (BigDecimal) line.get_Value("MaskQtyInternalUse");
+			if((BigDecimal) line.get_Value("MaskQtyInternalUse") != null){
+				m_MaskQtyInternalUse = (BigDecimal) line.get_Value("MaskQtyInternalUse");
+			}
+			else
+				m_MaskQtyInternalUse = BigDecimal.ZERO;
 			
 			//	nothing to post
 			if (line.getQtyBook().compareTo(line.getQtyCount()) == 0
