@@ -44,6 +44,10 @@ public class Doc_Inventory extends Doc
 {
 	private int				m_Reversal_ID = 0;
 	private String			m_DocStatus = "";
+	/**
+	 *	Created by Jorge Colmenarez */
+	private BigDecimal		m_MaskQtyInternalUse = BigDecimal.ZERO;
+	/**	End Jorge Colmenarez */
 	
 	/**
 	 *  Constructor
@@ -86,6 +90,9 @@ public class Doc_Inventory extends Doc
 		for (int i = 0; i < lines.length; i++)
 		{
 			MInventoryLine line = lines[i];
+			
+			m_MaskQtyInternalUse = (BigDecimal) line.get_Value("MaskQtyInternalUse");
+			
 			//	nothing to post
 			if (line.getQtyBook().compareTo(line.getQtyCount()) == 0
 				&& line.getQtyInternalUse().signum() == 0)
@@ -179,16 +186,23 @@ public class Doc_Inventory extends Doc
 			//  InventoryDiff   DR      CR
 			//	or Charge
 			MAccount invDiff = null;
-			if (m_DocStatus.equals(MInventory.DOCSTATUS_Reversed)
-					&& m_Reversal_ID != 0
-					&& line.getReversalLine_ID() != 0
-					&& line.getC_Charge_ID() != 0) {
-				//	Changed By Jorge Colmenarez 2014-08-08 
-				//	Comment line.getChargeAccount and Replace by getAccount
-				invDiff = getAccount(Doc.ACCTTYPE_ExpenseAcct, as, line);//line.getChargeAccount(as, costs);
-			} else {
-				invDiff = getAccount(Doc.ACCTTYPE_ExpenseAcct, as, line);//line.getChargeAccount(as, costs.negate());
+			//	Added By Jorge Colmenarez 2014-08-08 
+			//	Compare value to m_MaskQtyInternalUse if 0 then 
+			//	getChargeAccount else getAccount from Product.
+			if (m_MaskQtyInternalUse.equals(BigDecimal.ZERO)){
+				if (m_DocStatus.equals(MInventory.DOCSTATUS_Reversed)
+						&& m_Reversal_ID != 0
+						&& line.getReversalLine_ID() != 0
+						&& line.getC_Charge_ID() != 0) {
+					invDiff = line.getChargeAccount(as, costs);
+				} else {
+					invDiff = line.getChargeAccount(as, costs.negate());
+				}
 			}
+			else{
+				invDiff = getAccount(Doc.ACCTTYPE_ExpenseAcct, as, line);
+			}
+			// End Jorge Colmenarez
 
 			if (invDiff == null)
 				invDiff = getAccount(Doc.ACCTTYPE_InvDifferences, as);
