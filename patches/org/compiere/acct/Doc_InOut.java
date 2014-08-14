@@ -408,15 +408,18 @@ public class Doc_InOut extends Doc
 				}
 				//  Inventory/Asset			DR
 				MAccount assets = line.getAccount(ProductCost.ACCTTYPE_P_Asset, as);
-				if (product.isService())
-				{	
-					//if the line is a Outside Processing then DR WIP
-					if(line.getPP_Cost_Collector_ID() > 0)
-						assets = line.getAccount(ProductCost.ACCTTYPE_P_WorkInProcess, as);	
-					else	
-						assets = line.getAccount(ProductCost.ACCTTYPE_P_Expense, as);
-					
-				}
+				/*	Commented By Jorge Colmenarez 2014-08-13
+				 * 	Define ACCTTYPE_P_Asset in all cases
+				 *	if (product.isService())
+					{	
+						//if the line is a Outside Processing then DR WIP
+						if(line.getPP_Cost_Collector_ID() > 0)
+							assets = line.getAccount(ProductCost.ACCTTYPE_P_WorkInProcess, as);	
+						else	
+							assets = line.getAccount(ProductCost.ACCTTYPE_P_Expense, as);
+						
+					}
+				 *	End Jorge Colmenarez */
 
 				
 				// Elaine 2008/06/26

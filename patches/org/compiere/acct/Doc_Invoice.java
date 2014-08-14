@@ -623,8 +623,11 @@ public class Doc_Invoice extends Doc
 				if (!landedCost)
 				{
 					MAccount expense = line.getAccount(ProductCost.ACCTTYPE_P_Expense, as);
-					if (line.isItem())
-						expense = line.getAccount (ProductCost.ACCTTYPE_P_InventoryClearing, as);
+					/*	Commented By Jorge Colmenarez 2014-08-13
+					 * 	Define ACCTTYPE_P_Asset in all cases
+						if (line.isItem())
+							expense = line.getAccount (ProductCost.ACCTTYPE_P_InventoryClearing, as);
+					* 	End Jorge Colmenarez */
 					BigDecimal amt = line.getAmtSource();
 					BigDecimal dAmt = null;
 					if (as.isTradeDiscountPosted() && !line.isItem())
@@ -738,12 +741,15 @@ public class Doc_Invoice extends Doc
 			{
 				MAccount acct = line.getAccount(
 					payables ? ProductCost.ACCTTYPE_P_Expense : ProductCost.ACCTTYPE_P_Revenue, as);
-				if (payables)
-				{
-					//	if Fixed Asset
-					if (line.isItem())
-						acct = line.getAccount (ProductCost.ACCTTYPE_P_InventoryClearing, as);
-				}
+				/*	Commented By Jorge Colmenarez 2014-08-13
+				 * 	Define ACCTTYPE_P_Asset in all cases
+					if (payables)
+					{
+						//	if Fixed Asset
+						if (line.isItem())
+							acct = line.getAccount (ProductCost.ACCTTYPE_P_InventoryClearing, as);
+					}
+				* 	End Jorge Colmenarez */
 				BigDecimal amt = line.getAmtSource().multiply(multiplier);
 				BigDecimal amt2 = null;
 				if (creditMemo)
