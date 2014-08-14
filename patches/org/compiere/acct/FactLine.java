@@ -1190,5 +1190,116 @@ public final class FactLine extends X_Fact_Acct
 		}
 		return success;
 	}   //  updateReverseLine
+	
+	/**************************************************************************
+	 * 	Created By Jorge Colmenarez 
+	 * 	The SQL statement will not be filtered by the column Account_ID.
+	 * 	End Jorge Colmenarez
+	 * 
+	 * 	Update Line with reversed Original Amount in Accounting Currency.
+	 * 	Also copies original dimensions like Project, etc.
+	 * 	Called from Doc_MatchInv
+	 * 	@param AD_Table_ID table
+	 * 	@param Record_ID record
+	 * 	@param Line_ID line
+	 * 	@param multiplier targetQty/documentQty
+	 * 	@return true if success
+	 */
+	public boolean updateReverseLineWithoutAccount (int AD_Table_ID, int Record_ID, int Line_ID,
+		BigDecimal multiplier)
+	{
+		boolean success = false;
+
+		String sql = "SELECT * "
+			+ "FROM Fact_Acct "
+			+ "WHERE C_AcctSchema_ID=? AND AD_Table_ID=? AND Record_ID=?"
+			+ " AND Line_ID=?";
+		// MZ Goodwill
+		// for Inventory Move
+		if (MMovement.Table_ID == AD_Table_ID)
+			sql += " AND M_Locator_ID=?";
+		// end MZ
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		try
+		{
+			pstmt = DB.prepareStatement(sql, get_TrxName());
+			pstmt.setInt(1, getC_AcctSchema_ID());
+			pstmt.setInt(2, AD_Table_ID);
+			pstmt.setInt(3, Record_ID);
+			pstmt.setInt(4, Line_ID);
+			// Commented By Jorge Colmenarez 2014-08-13 
+			// Removed because now the account of MatchInv is not in Fact_Acct
+			// pstmt.setInt(5, m_acct.getAccount_ID());
+			// End Jorge Colmenarez 
+			// MZ Goodwill
+			// for Inventory Move
+			if (MMovement.Table_ID == AD_Table_ID)
+				pstmt.setInt(6, getM_Locator_ID());
+			// end MZ
+			rs = pstmt.executeQuery();
+			if (rs.next())
+			{
+				MFactAcct fact = new MFactAcct(getCtx(), rs, get_TrxName());
+				//  Accounted Amounts - reverse
+				BigDecimal dr = fact.getAmtAcctDr();
+				BigDecimal cr = fact.getAmtAcctCr();
+				// setAmtAcctDr (cr.multiply(multiplier));
+				// setAmtAcctCr (dr.multiply(multiplier));
+				setAmtAcct(fact.getC_Currency_ID(), cr.multiply(multiplier), dr.multiply(multiplier));
+				//  
+				//  Bayu Sistematika - Source Amounts
+				//  Fixing source amounts
+				BigDecimal drSourceAmt = fact.getAmtSourceDr();
+				BigDecimal crSourceAmt = fact.getAmtSourceCr();
+				setAmtSource(fact.getC_Currency_ID(), crSourceAmt.multiply(multiplier), drSourceAmt.multiply(multiplier));
+				//  end Bayu Sistematika
+				//
+				success = true;
+				log.fine(new StringBuffer("(Table=").append(AD_Table_ID)
+					.append(",Record_ID=").append(Record_ID)
+					.append(",Line=").append(Record_ID)
+					.append(", Account=").append(m_acct)
+					.append(",dr=").append(dr).append(",cr=").append(cr)
+					.append(") - DR=").append(getAmtSourceDr()).append("|").append(getAmtAcctDr())
+					.append(", CR=").append(getAmtSourceCr()).append("|").append(getAmtAcctCr())
+					.toString());
+				//	Dimensions
+				setAD_OrgTrx_ID(fact.getAD_OrgTrx_ID());
+				setC_Project_ID (fact.getC_Project_ID());
+				setC_ProjectPhase_ID(fact.getC_ProjectPhase_ID());
+				setC_ProjectTask_ID(fact.getC_ProjectTask_ID());
+				setC_Activity_ID(fact.getC_Activity_ID());
+				setC_Campaign_ID(fact.getC_Campaign_ID());
+				setC_SalesRegion_ID(fact.getC_SalesRegion_ID());
+				setC_LocFrom_ID(fact.getC_LocFrom_ID());
+				setC_LocTo_ID(fact.getC_LocTo_ID());
+				setM_Product_ID(fact.getM_Product_ID());
+				setM_Locator_ID(fact.getM_Locator_ID());
+				setUser1_ID(fact.getUser1_ID());
+				setUser2_ID(fact.getUser2_ID());
+				setC_UOM_ID(fact.getC_UOM_ID());
+				setC_Tax_ID(fact.getC_Tax_ID());
+				//	Org for cross charge
+				setAD_Org_ID (fact.getAD_Org_ID());
+			}
+			else
+				log.warning(new StringBuffer("Not Found (try later) ")
+					.append(",C_AcctSchema_ID=").append(getC_AcctSchema_ID())
+					.append(", AD_Table_ID=").append(AD_Table_ID)
+					.append(",Record_ID=").append(Record_ID)
+					.append(",Line_ID=").append(Line_ID)
+					.append(", Account_ID=").append(m_acct.getAccount_ID()).toString());
+		}
+		catch (SQLException e)
+		{
+			log.log(Level.SEVERE, sql, e);
+		}
+		finally {
+			DB.close(rs, pstmt);
+			rs = null; pstmt = null;
+		}
+		return success;
+	}   //  updateReverseLine
 
 }	//	FactLine

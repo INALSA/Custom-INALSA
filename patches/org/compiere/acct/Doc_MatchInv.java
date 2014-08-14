@@ -193,8 +193,11 @@ public class Doc_MatchInv extends Doc
 		//  InventoryClearing               CR
 		//  From Invoice
 		MAccount expense = m_pc.getAccount(ProductCost.ACCTTYPE_P_InventoryClearing, as);
-		if (m_pc.isService())
-			expense = m_pc.getAccount(ProductCost.ACCTTYPE_P_Expense, as);
+		/*	Commented By Jorge Colmenarez 2014-08-13
+		 * 	Define ACCTTYPE_P_InventoryClearing in all Cases
+		 * 	if (m_pc.isService())
+		 *		expense = m_pc.getAccount(ProductCost.ACCTTYPE_P_Expense, as);
+		 *	End Jorge Colmenarez */
 		BigDecimal LineNetAmt = m_invoiceLine.getLineNetAmt();
 		multiplier = getQty()
 			.divide(m_invoiceLine.getQtyInvoiced(), 12, BigDecimal.ROUND_HALF_UP)
@@ -238,7 +241,9 @@ public class Doc_MatchInv extends Doc
 			cr.setQty(getQty().negate());
 			temp = cr.getAcctBalance();
 			//	Set AmtAcctCr/Dr from Invoice (sets also Project)
-			if (as.isAccrual() && !cr.updateReverseLine (MInvoice.Table_ID, 		//	Amt updated
+			// 	Changed By Jorge Colmenarez call method updateReverseLineWithoutAccount and not updateReverseLine 
+			//	because now the account will always ACCTTYPE_P_InventoryClearing that is not in Fact_Acct
+			if (as.isAccrual() && !cr.updateReverseLineWithoutAccount (MInvoice.Table_ID, 		//	Amt updated
 				m_invoiceLine.getC_Invoice_ID(), m_invoiceLine.getC_InvoiceLine_ID(), multiplier))
 			{
 				p_Error = "Invoice not posted yet";
