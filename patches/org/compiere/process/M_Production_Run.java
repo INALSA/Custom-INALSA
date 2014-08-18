@@ -26,6 +26,7 @@ import org.compiere.model.MLocator;
 import org.compiere.model.MProduct;
 import org.compiere.model.MStorage;
 import org.compiere.model.MTransaction;
+import org.compiere.model.MUOMConversion;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_Production;
 import org.compiere.model.X_M_ProductionLine;
@@ -45,19 +46,17 @@ import org.eevolution.model.MPPProductBOMLine;
  * 
  * @author victor.perez@e-evolution.com
  * @contributor: Carlos Ruiz (globalqss) - review backward compatibility - implement mustBeStocked properly
+ * @contributor: Carlos Parada (Mary-Iancarina) - 
+ * Separate Process Generate Production And Proces Production, Locator For Components Products, Support for UOM Conversion 
  */
 public class M_Production_Run extends SvrProcess {
 
 	/** The Record */
 	private int p_Record_ID = 0;
-
-	private boolean mustBeStocked = false;
 	
 	/** Locator to */
 	private int p_M_LocatorFrom_ID = 0;
 	
-	/** Product BOM*/
-	int p_PP_Product_BOM_ID = 0 ;
 	private int m_level = 0;
 
 	/**
@@ -69,17 +68,8 @@ public class M_Production_Run extends SvrProcess {
 			String name = para[i].getParameterName();
 			if (para[i].getParameter() == null)
 				;
-			else if (name.equals("MustBeStocked"))
-				mustBeStocked = ((String) para[i].getParameter()).equals("Y");
-			
-			/** 2014-07-10 Carlos Parada Add Locator to Process Create Production */
 			else if (name.equals("M_LocatorFrom_ID"))
-				p_M_LocatorFrom_ID = para[i].getParameterAsInt();
-			/** 2014-07-14 Carlos Parada Add BOM Product */
-			else if (name.equals("PP_Product_BOM_ID"))
-				p_PP_Product_BOM_ID = para[i].getParameterAsInt();
-			
-			/** End Carlos Parada*/
+				p_M_LocatorFrom_ID = para[i].getParameterAsInt();			
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + name);
 		}
@@ -96,134 +86,51 @@ public class M_Production_Run extends SvrProcess {
 	protected String doIt() throws Exception 
 	{
 		log.info("Search fields in M_Production");
-
+		MPPProductBOM bom = null;
+		BigDecimal qtyToProduced = Env.ZERO;
 		X_M_Production production = new X_M_Production(getCtx(), p_Record_ID, get_TrxName());
-		/**
-		 * No Action
-		 */
-		
-		if (p_PP_Product_BOM_ID == 0)
-			new AdempiereUserError("@Invalid@ @PP_Product_BOM_ID@");
-		
-		if (production.isProcessed()) 
-		{
-			log.info("Already Posted");
-			return "@AlreadyPosted@";
-		}
 		
 
-			String whereClause = "M_Production_ID=? ";
-			List<X_M_ProductionPlan> lines = new Query(getCtx(), X_M_ProductionPlan.Table_Name , whereClause, get_TrxName())
-													  .setParameters(p_Record_ID)
-													  .setOrderBy("Line, M_Product_ID")
-													  .list();
-				for (X_M_ProductionPlan pp :lines)
-				{	
-	
-					if (!production.isCreated()) 
-					{
-						int line = 100;
-						int no = DB.executeUpdateEx("DELETE M_ProductionLine WHERE M_ProductionPlan_ID = ?", new Object[]{pp.getM_ProductionPlan_ID()},get_TrxName());
-						if (no == -1) raiseError("ERROR", "DELETE M_ProductionLine WHERE M_ProductionPlan_ID = "+ pp.getM_ProductionPlan_ID());
-						
-						MProduct product = MProduct.get(getCtx(), pp.getM_Product_ID());
+		String whereClause = "M_Production_ID=? ";
+		List<X_M_ProductionPlan> lines = new Query(getCtx(), X_M_ProductionPlan.Table_Name , whereClause, get_TrxName())
+												  .setParameters(p_Record_ID)
+												  .setOrderBy("Line, M_Product_ID")
+												  .list();
+		for (X_M_ProductionPlan pp :lines)
+		{			
+			int line = 100;
+			int no = DB.executeUpdateEx("DELETE M_ProductionLine WHERE M_ProductionPlan_ID = ?", new Object[]{pp.getM_ProductionPlan_ID()},get_TrxName());
+			if (no == -1) raiseError("ERROR", "DELETE M_ProductionLine WHERE M_ProductionPlan_ID = "+ pp.getM_ProductionPlan_ID());
 			
-						X_M_ProductionLine pl = new X_M_ProductionLine(getCtx(), 0 , get_TrxName());
-						pl.setAD_Org_ID(pp.getAD_Org_ID());
-						pl.setLine(line);
-						pl.setDescription(pp.getDescription());
-						pl.setM_Product_ID(pp.getM_Product_ID());
-						pl.setM_Locator_ID(pp.getM_Locator_ID());
-						pl.setM_ProductionPlan_ID(pp.getM_ProductionPlan_ID());
-						pl.setMovementQty(pp.getProductionQty());
-						pl.saveEx();
-						if (explosion(pp, product, pp.getProductionQty() , line) == 0 )
-							raiseError("No BOM Lines", "");
-						
-					}
-					else
-					{	
-						whereClause = "M_ProductionPlan_ID= ? ";
-						List<X_M_ProductionLine> production_lines = new Query(getCtx(), X_M_ProductionLine.Table_Name , whereClause, get_TrxName())
-																  .setParameters(pp.getM_ProductionPlan_ID())
-																  .setOrderBy("Line")
-															  .list();
-					
-						for (X_M_ProductionLine pline : production_lines)
-						{
-							/** 2014-07-10 Carlos Parada set Locator to Process Create Production */
-							//MLocator locator = MLocator.get(getCtx(), pline.getM_Locator_ID());
-							MLocator locator = MLocator.get(getCtx(), (p_M_LocatorFrom_ID == 0 ? pline.getM_Locator_ID() : p_M_LocatorFrom_ID ));
-							/** End Carlos Parada*/
-							
-							String MovementType = MTransaction.MOVEMENTTYPE_ProductionPlus;					
-							BigDecimal MovementQty = pline.getMovementQty();						
-							if (MovementQty.signum() == 0)
-								continue ;
-							else if(MovementQty.signum() < 0)
-							{
-								BigDecimal QtyAvailable = MStorage.getQtyAvailable(
-										locator.getM_Warehouse_ID(), 
-										locator.getM_Locator_ID(), 
-										pline.getM_Product_ID(), 
-										pline.getM_AttributeSetInstance_ID(),
-										get_TrxName());
-								
-								if(mustBeStocked && QtyAvailable.add(MovementQty).signum() < 0)
-								{	
-									raiseError("@NotEnoughStocked@: " + pline.getM_Product().getName(), "");
-								}
-								
-								MovementType = MTransaction.MOVEMENTTYPE_Production_;
-							}
-						
-							if (!MStorage.add(getCtx(), locator.getM_Warehouse_ID(),
-								locator.getM_Locator_ID(),
-								pline.getM_Product_ID(), 
-								pline.getM_AttributeSetInstance_ID(), 0 , 
-								MovementQty,
-								Env.ZERO,
-								Env.ZERO,
-								get_TrxName()))
-							{
-								raiseError("Cannot correct Inventory", "");
-							}
-							
-							//Create Transaction
-							MTransaction mtrx = new MTransaction (getCtx(), pline.getAD_Org_ID(), 
-								MovementType, locator.getM_Locator_ID(),
-								pline.getM_Product_ID(), pline.getM_AttributeSetInstance_ID(), 
-								MovementQty, production.getMovementDate(), get_TrxName());
-							mtrx.setM_ProductionLine_ID(pline.getM_ProductionLine_ID());
-							mtrx.saveEx();
-							
-							pline.setProcessed(true);
-							pline.saveEx();
-						} // Production Line
+			MProduct product = MProduct.get(getCtx(), pp.getM_Product_ID());
+			if (pp.get_ValueAsInt("PP_Product_BOM_ID") > 0)
+				bom = MPPProductBOM.get(getCtx(), pp.get_ValueAsInt("PP_Product_BOM_ID"));
+			else
+				bom= MPPProductBOM.getDefault(product, get_TrxName());
+			
+			X_M_ProductionLine pl = new X_M_ProductionLine(getCtx(), 0 , get_TrxName());
+			pl.setAD_Org_ID(pp.getAD_Org_ID());
+			pl.setLine(line);
+			pl.setDescription(pp.getDescription());
+			pl.setM_Product_ID(pp.getM_Product_ID());
+			pl.setM_Locator_ID(pp.getM_Locator_ID());
+			pl.setM_ProductionPlan_ID(pp.getM_ProductionPlan_ID());
+			qtyToProduced = MUOMConversion.convertProductFrom (getCtx(), pp.getM_Product_ID(), 
+					bom.getC_UOM_ID(), pp.getProductionQty());
+			pl.setMovementQty(qtyToProduced);
+			pl.saveEx(get_TrxName());
 
-				 pp.setProcessed(true);
-				 pp.saveEx();
-				} 	
-		} // Production Plan
+			if (explosion(pp, product, pp.getProductionQty() , line ,bom) == 0 )
+				raiseError("No BOM Lines", "");
 				
+			
+		} // Production Plan
+		
 		if(!production.isCreated())	
 		{	
 			production.setIsCreated(true);
 			production.saveEx();
 		}
-		else
-		{
-			 production.setProcessed(true);
-			 production.saveEx();	
-			 
-			 /* Immediate accounting */
-			 if (MClient.isClientAccountingImmediate()) {
-				 @SuppressWarnings("unused")
-				String ignoreError = DocumentEngine.postImmediate(getCtx(), getAD_Client_ID(), production.get_Table_ID(), production.get_ID(), true, get_TrxName());						
-			 }
-			 
-		}
-		
 		return "@OK@";
 
 	} 
@@ -236,12 +143,14 @@ public class M_Production_Run extends SvrProcess {
 	 * @param qty
 	 * @throws Exception 
 	 */
-	private int explosion(X_M_ProductionPlan pp , MProduct product , BigDecimal qty , int line) throws Exception
-	{
-		//MPPProductBOM bom = MPPProductBOM.getDefault(product, get_TrxName());
-		/** 2014-07-14 Carlos Parada Set Material List from Parameter */ 
-		MPPProductBOM bom = MPPProductBOM.get(getCtx(), p_PP_Product_BOM_ID);
-		/** End Carlos Parada */ 
+	private int explosion(X_M_ProductionPlan pp , MProduct product , BigDecimal qty , int line, MPPProductBOM p_Bom ) throws Exception
+	{	
+		
+		MPPProductBOM bom = p_Bom;
+		BigDecimal qtyBOM = Env.ZERO;
+		if (bom == null)
+			bom= MPPProductBOM.getDefault(product, get_TrxName());
+		
 		if(bom == null )
 		{	
 			raiseError("Do not exist default BOM for this product :" 
@@ -259,7 +168,7 @@ public class M_Production_Run extends SvrProcess {
 			
 			if(component.isBOM() && !component.isStocked())
 			{	
-				explosion(pp, component, bomline.getQtyBOM() , line);
+				explosion(pp, component, bomline.getQtyBOM() , line, null);
 			}
 			else
 			{	
@@ -269,13 +178,11 @@ public class M_Production_Run extends SvrProcess {
 				pl.setLine(line);
 				pl.setDescription(bomline.getDescription());
 				pl.setM_Product_ID(bomline.getM_Product_ID());
-				/** 2014-07-10 Carlos Parada set Locator to Process Create Production */
-				//pl.setM_Locator_ID(pp.getM_Locator_ID());
-				pl.setM_Locator_ID((p_M_LocatorFrom_ID == 0 ? pp.getM_Locator_ID() : p_M_LocatorFrom_ID ));
-				/** End Carlos Parada*/
-				
+				pl.setM_Locator_ID((p_M_LocatorFrom_ID == 0 ? pp.getM_Locator_ID() : p_M_LocatorFrom_ID ));				
 				pl.setM_ProductionPlan_ID(pp.getM_ProductionPlan_ID());
-				pl.setMovementQty(bomline.getQtyBOM().multiply(qty).negate());
+				qtyBOM = MUOMConversion.convertProductFrom (getCtx(), bomline.getM_Product_ID(), 
+						bomline.getC_UOM_ID(), bomline.getQtyBOM());
+				pl.setMovementQty(qtyBOM.multiply(qty).negate());
 				pl.saveEx();
 				components += 1;
 				
