@@ -21,11 +21,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.logging.Level;
 
-import org.compiere.model.MClient;
-import org.compiere.model.MLocator;
 import org.compiere.model.MProduct;
-import org.compiere.model.MStorage;
-import org.compiere.model.MTransaction;
 import org.compiere.model.MUOMConversion;
 import org.compiere.model.Query;
 import org.compiere.model.X_M_Production;
