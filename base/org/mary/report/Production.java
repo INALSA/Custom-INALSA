@@ -30,14 +30,14 @@ public class Production extends SvrProcess {
 	
 	/** The Product to Produced */
 	private int p_M_Product_ID = 0;
-	/** The Product Attribute Set Instance*/
-	private int p_M_AttributeSetInstance_ID = 0;
 	/** The LDM of the Selected Product */
 	private int p_PP_Product_BOM_ID = 0;
 	/** The Warehouse where to find the Components */
-	private int p_M_Locator_ID = 0;
+	private int p_M_LocatorFrom_ID = 0;
 	/** The Quantity to Produced */
 	private BigDecimal p_QtyProduced = BigDecimal.ZERO;
+	/** Deployed Components if is true */
+	private String p_IsDeployed = "";
 
 	/**
 	 * Prepare - e.g., get Parameters.
@@ -50,14 +50,14 @@ public class Production extends SvrProcess {
 				;
 			else if (name.equals("M_Product_ID"))
 				p_M_Product_ID = para[i].getParameterAsInt();
-			else if (name.equals("M_AttributeSetInstance_ID"))
-				p_M_AttributeSetInstance_ID = para[i].getParameterAsInt();
 			else if (name.equals("PP_Product_BOM_ID"))
 				p_PP_Product_BOM_ID = para[i].getParameterAsInt();
-			else if (name.equals("M_Locator_ID"))
-				p_M_Locator_ID = para[i].getParameterAsInt();
+			else if (name.equals("M_LocatorFrom_ID"))
+				p_M_LocatorFrom_ID = para[i].getParameterAsInt();
 			else if (name.equals("QtyProduced"))
 				p_QtyProduced = (BigDecimal) para[i].getParameter();
+			else if (name.equals("IsDeployed"))
+				p_IsDeployed = (String) para[i].getParameter();
 			else
 				log.log(Level.SEVERE, "Unknown Parameter: " + name);
 		}
@@ -67,7 +67,7 @@ public class Production extends SvrProcess {
 	protected String doIt() throws Exception {
 		MPPProductBOM pBom = new MPPProductBOM(getCtx(), p_PP_Product_BOM_ID, get_TrxName());
 		MProduct Product = new MProduct(getCtx(), p_M_Product_ID, get_TrxName());
-		MLocator Locator = new MLocator(getCtx(), p_M_Locator_ID, get_TrxName());
+		MLocator Locator = new MLocator(getCtx(), p_M_LocatorFrom_ID, get_TrxName());
 		
 		if(explosion(Product,pBom,Locator,p_QtyProduced) == 0)
 			raiseError("No BOM Lines", "");
@@ -105,9 +105,13 @@ public class Production extends SvrProcess {
 		for(MPPProductBOMLine bomline : bom_lines)
 		{
 			MProduct component = MProduct.get(getCtx(), bomline.getM_Product_ID());
-			
-			if(component.isBOM() && !component.isStocked())
+			if(p_IsDeployed.equals("N") && component.isBOM() && !component.isStocked())
 			{	
+				explosion(component,null,locator,bomline.getQtyBOM());
+				
+			}
+			else if(p_IsDeployed.equals("Y") && component.isBOM())
+			{
 				explosion(component,null,locator,bomline.getQtyBOM());
 			}
 			else
@@ -115,23 +119,23 @@ public class Production extends SvrProcess {
 				//line += 1;
 				X_T_Cust_M_Production p = new X_T_Cust_M_Production(getCtx(), 0, get_TrxName());
 				p.setAD_PInstance_ID(getAD_PInstance_ID());
-				p.set_CustomColumn("M_AttributeSetInstance_ID",p_M_AttributeSetInstance_ID);
+				p.set_CustomColumn("M_AttributeSetInstance_ID", bomline.getM_AttributeSetInstance_ID());
 				p.setM_Product_ID(p_M_Product_ID);
 				p.setPP_Product_BOM_ID(p_PP_Product_BOM_ID);
-				p.setM_Locator_ID(p_M_Locator_ID);
+				p.setM_Locator_ID((p_M_LocatorFrom_ID == 0 ? component.getM_Locator_ID() : p_M_LocatorFrom_ID ));
 				p.setQtyProduced(p_QtyProduced);
 				p.setM_ProductComponent_ID(bomline.getM_Product_ID());
+				p.set_CustomColumn("C_UOM_ID",bomline.getC_UOM_ID());
 				qtyBOM = MUOMConversion.convertProductFrom (getCtx(), bomline.getM_Product_ID(), 
 						bomline.getC_UOM_ID(), bomline.getQtyBOM());
 				p.setQtyToUse(qtyBOM.multiply(qty));
 					/**	Search QtyAvailable,QtyOnHand and QtyReserved From Table M_Storage
 					 * 	@param p_M_Product_ID
-					 * 	@param p_M_Locator_ID
-					 * 	@param p_M_AttributeSetInstance_ID			 
+					 * 	@param p_M_LocatorFrom_ID			 
 					 **/
 					StringBuffer sql = new StringBuffer();
-					String p_ClausuleWhere = "WHERE M_Product_ID ="+p_M_Product_ID+" AND M_Locator_ID ="+p_M_Locator_ID+" AND M_AttributeSetInstance_ID ="+p_M_AttributeSetInstance_ID;
-					sql.append("Select SUM(qtyonhand) AS QtyOnHand,SUM(qtyreserved) AS QtyReserved,SUM(qtyonhand)-SUM(qtyreserved) AS QtyAvailable From M_Storage "+p_ClausuleWhere+" GROUP BY M_Product_ID,M_Locator_ID,M_AttributeSetInstance_ID");
+					String p_ClausuleWhere = "WHERE M_Product_ID ="+bomline.getM_Product_ID()+" AND M_Locator_ID ="+(p_M_LocatorFrom_ID == 0 ? component.getM_Locator_ID() : p_M_LocatorFrom_ID );
+					sql.append("Select SUM(qtyonhand) AS QtyOnHand,SUM(qtyreserved) AS QtyReserved,SUM(qtyonhand)-SUM(qtyreserved) AS QtyAvailable From M_Storage "+p_ClausuleWhere+" GROUP BY M_Product_ID,M_Locator_ID");
 					log.fine("SQL = " + sql.toString());
 					try{
 						PreparedStatement pstmt = DB.prepareStatement (sql.toString(), get_TrxName());
@@ -155,9 +159,8 @@ public class Production extends SvrProcess {
 					/** End Search QtyAvailable,QtyOnHand and QtyReserved */
 					
 				p.saveEx();
-				components += 1;
-				
 			}
+			components += 1;
 		
 		}
 		return  components;
