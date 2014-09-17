@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import org.compiere.model.MCashLine;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
+import org.compiere.model.MOrder;
 import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPayment;
 import org.compiere.model.MTax;
@@ -54,10 +55,14 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 		} else {
 			log.info("Initializing global validator: " + this.toString());
 		}
-		// We want to be informed when C_BPartner is created/changed
+		// 	We want to be informed when C_BPartner is created/changed
 		engine.addModelChange(MCashLine.Table_Name, this);
 		//	Add Listener for Payment Doc Validate
 		engine.addDocValidate(MPayment.Table_Name, this);
+		//	Changed By Jorge Colmenarez 2014-09-17 
+		// 	We want to be informed when Project or Cost Center is created / changed
+		engine.addModelChange(MOrder.Table_Name, this);
+		//	End Jorge Colmenarez
 
 	}
 
@@ -119,7 +124,19 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 							") > " + Msg.translate(m_CashLine.getCtx(), "Amount");				
 			}
 			log.info(po.toString());			
-		}
+		} //	Added by Jorge Colmenarez 2014-09-17 
+		else if (po.get_TableName().equals(MOrder.Table_Name) 
+				&& (type == TYPE_BEFORE_CHANGE 
+				|| type == TYPE_BEFORE_NEW)){
+			log.fine(MOrder.Table_Name + " -- TYPE_BEFORE_NEW || TYPE_BEFORE_CHANGE");
+			//	Get Order from PO 
+			MOrder m_Order = (MOrder) po;
+			// 	It is verified that has been selected a Project or Cost Center.
+			if(m_Order.isSOTrx() == false && 
+				((m_Order.getC_Project_ID()!= 0 && m_Order.getUser1_ID() != 0)
+				|| (m_Order.getC_Project_ID()== 0 && m_Order.getUser1_ID() == 0)))
+				return Msg.parseTranslation(m_Order.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@");
+		}//		End Jorge Colmenarez
 		return null;
 	} // modelChange
 
