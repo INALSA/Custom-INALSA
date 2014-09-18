@@ -6,6 +6,7 @@ import org.compiere.model.MCashLine;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
 import org.compiere.model.MOrder;
+import org.compiere.model.MOrderLine;
 import org.compiere.model.MPaySelectionCheck;
 import org.compiere.model.MPayment;
 import org.compiere.model.MTax;
@@ -62,6 +63,7 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 		//	Changed By Jorge Colmenarez 2014-09-17 
 		// 	We want to be informed when Project or Cost Center is created / changed
 		engine.addModelChange(MOrder.Table_Name, this);
+		engine.addModelChange(MOrderLine.Table_Name, this);
 		//	End Jorge Colmenarez
 
 	}
@@ -133,9 +135,23 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 			MOrder m_Order = (MOrder) po;
 			// 	It is verified that has been selected a Project or Cost Center.
 			if(m_Order.isSOTrx() == false && 
-				((m_Order.getC_Project_ID()!= 0 && m_Order.getUser1_ID() != 0)
-				|| (m_Order.getC_Project_ID()== 0 && m_Order.getUser1_ID() == 0)))
+				((m_Order.getC_Project_ID() != 0 && m_Order.getUser1_ID() != 0)
+				|| (m_Order.getC_Project_ID() == 0 && m_Order.getUser1_ID() == 0)))
 				return Msg.parseTranslation(m_Order.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@");
+		}
+		else if (po.get_TableName().equals(MOrderLine.Table_Name) 
+				&& (type == TYPE_BEFORE_CHANGE 
+				|| type == TYPE_BEFORE_NEW)){
+			log.fine(MOrderLine.Table_Name + " -- TYPE_BEFORE_NEW || TYPE_BEFORE_CHANGE");
+			//	Get OrderLine from PO 
+			MOrderLine m_OrderLine = (MOrderLine) po;
+			//	Get Order from OrderLine
+			MOrder order = new MOrder(m_OrderLine.getCtx(), m_OrderLine.getC_Order_ID(), m_OrderLine.get_TableName());
+			// 	It is verified that has been selected a Project or Cost Center.
+			if(order.isSOTrx() == false && 
+				((m_OrderLine.get_Value("C_Project_ID") == null && m_OrderLine.getUser1_ID() == 0) 
+				|| (m_OrderLine.get_Value("C_Project_ID") != null && m_OrderLine.getUser1_ID() != 0)))
+				return Msg.parseTranslation(m_OrderLine.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@");
 		}//		End Jorge Colmenarez
 		return null;
 	} // modelChange
