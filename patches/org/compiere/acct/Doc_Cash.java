@@ -275,6 +275,7 @@ public class Doc_Cash extends Doc
 		if (MSysConfig.getBooleanValue("TAX_ACCT_CASH", false))
 		{
 			BigDecimal amt = Env.ZERO;
+			System.out.println(m_taxes);
 			//  TaxDue                  CR
 			for (int i = 0; i < m_taxes.length; i++)
 			{
