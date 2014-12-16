@@ -6,6 +6,7 @@ import java.util.logging.Level;
 
 import org.compiere.model.MCash;
 import org.compiere.model.MCashTax;
+import org.compiere.model.MPeriod;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import java.util.List;
@@ -55,6 +56,8 @@ public class RecalculateCashTax extends SvrProcess {
 						.list();
 		
 		for(MCash mCash : list){
+			MPeriod.testPeriodOpen(getCtx(), mCash.getDateAcct(), 
+					mCash.get_ValueAsInt("C_DocTypeTarget_ID"), mCash.getAD_Org_ID());
 			if(MCashTax.calculateTaxTotal(mCash))
 				noCash++;
 		}

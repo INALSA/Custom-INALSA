@@ -27,6 +27,7 @@ import org.compiere.model.MAcctSchema;
 import org.compiere.model.MCash;
 import org.compiere.model.MCashBook;
 import org.compiere.model.MCashLine;
+import org.compiere.model.MDocType;
 import org.compiere.model.MSysConfig;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -275,15 +276,22 @@ public class Doc_Cash extends Doc
 		if (MSysConfig.getBooleanValue("TAX_ACCT_CASH", false))
 		{
 			BigDecimal amt = Env.ZERO;
-			System.out.println(m_taxes);
+			MCash mCash = new MCash(getCtx(), get_ID(), getTrxName());
+			MDocType mDocType = new MDocType(getCtx(), mCash.get_ValueAsInt("C_DocTypeTarget_ID"), getTrxName());
 			//  TaxDue                  CR
 			for (int i = 0; i < m_taxes.length; i++)
 			{
 				amt = m_taxes[i].getAmount();
 				if (amt != null && amt.signum() != 0)
 				{
-					FactLine tl = fact.createLine(null, m_taxes[i].getAccount(DocTax.ACCTTYPE_TaxDue, as),
-						getC_Currency_ID(), amt.negate(), null);
+					FactLine tl;
+					if(mDocType.isSOTrx()==true){
+						tl = fact.createLine(null, m_taxes[i].getAccount(DocTax.ACCTTYPE_TaxDue, as),
+								getC_Currency_ID(), amt.negate(), null);
+					}else{
+						tl = fact.createLine(null, m_taxes[i].getAccount(DocTax.ACCTTYPE_TaxCredit, as),
+							getC_Currency_ID(), amt.negate(), null);
+					}
 					
 					if (tl != null)
 						tl.setC_Tax_ID(m_taxes[i].getC_Tax_ID());

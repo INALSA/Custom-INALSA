@@ -2,7 +2,9 @@ package org.erpca.model;
 
 import java.math.BigDecimal;
 
+import org.compiere.model.MCash;
 import org.compiere.model.MCashLine;
+import org.compiere.model.MCashTax;
 import org.compiere.model.MClient;
 import org.compiere.model.MCurrency;
 import org.compiere.model.MOrder;
@@ -12,6 +14,7 @@ import org.compiere.model.MPayment;
 import org.compiere.model.MTax;
 import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.PO;
+import org.compiere.model.X_C_CashTax;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
@@ -64,6 +67,7 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 		// 	We want to be informed when Project or Cost Center is created / changed
 		engine.addModelChange(MOrder.Table_Name, this);
 		engine.addModelChange(MOrderLine.Table_Name, this);
+		engine.addDocValidate(MCash.Table_Name, this); // Added By Jorge Colmenarez 2014-12-15 
 		//	End Jorge Colmenarez
 
 	}
@@ -184,6 +188,15 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 				
 				log.fine(MPayment.Table_Name + " -- TIMING_AFTER_COMPLETE -----> C_PaySelectionCheck_ID=" + C_PaySelectionCheck_ID);
 				
+			}	//	Added By Jorge Colmenarez 2014-12-12 
+				//	Created Cash Tax After Complete at Cash
+			else if(po.get_TableName().equals(MCash.Table_Name)){
+				MCash mCash = (MCash) po;
+				if(MCashTax.calculateTaxTotal(mCash)){
+					MCashTax [] mCashTax = MCashTax.getTaxes(true, mCash);
+					for(MCashTax line : mCashTax)
+						log.fine(MCashTax.Table_Name + " -- TIMING_AFTER_COMPLETE -----> C_CashTax_ID="+ line.get_ValueAsInt("C_CashTax_ID"));
+				}					
 			}
 		} else if(timing == TIMING_BEFORE_REVERSECORRECT || timing == TIMING_BEFORE_VOID){
 			if(po.get_TableName().equals(MPayment.Table_Name)){
