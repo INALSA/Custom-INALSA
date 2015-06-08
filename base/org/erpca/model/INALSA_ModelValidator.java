@@ -14,7 +14,6 @@ import org.compiere.model.MPayment;
 import org.compiere.model.MTax;
 import org.compiere.model.ModelValidationEngine;
 import org.compiere.model.PO;
-import org.compiere.model.X_C_CashTax;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
@@ -65,8 +64,9 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 		engine.addDocValidate(MPayment.Table_Name, this);
 		//	Changed By Jorge Colmenarez 2014-09-17 
 		// 	We want to be informed when Project or Cost Center is created / changed
-		engine.addModelChange(MOrder.Table_Name, this);
-		engine.addModelChange(MOrderLine.Table_Name, this);
+		//	Modified By Jorge Colmenarez 2015-06-08 
+		//	Changed engine of Model Change to Doc Validate for Order
+		engine.addDocValidate(MOrder.Table_Name, this);
 		engine.addDocValidate(MCash.Table_Name, this); // Added By Jorge Colmenarez 2014-12-15 
 		//	End Jorge Colmenarez
 
@@ -130,33 +130,7 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 							") > " + Msg.translate(m_CashLine.getCtx(), "Amount");				
 			}
 			log.info(po.toString());			
-		} //	Added by Jorge Colmenarez 2014-09-17 
-		else if (po.get_TableName().equals(MOrder.Table_Name) 
-				&& (type == TYPE_BEFORE_CHANGE 
-				|| type == TYPE_BEFORE_NEW)){
-			log.fine(MOrder.Table_Name + " -- TYPE_BEFORE_NEW || TYPE_BEFORE_CHANGE");
-			//	Get Order from PO 
-			MOrder m_Order = (MOrder) po;
-			// 	It is verified that has been selected a Project or Cost Center.
-			if(m_Order.isSOTrx() == false && 
-				((m_Order.getC_Project_ID() != 0 && m_Order.getUser1_ID() != 0)
-				|| (m_Order.getC_Project_ID() == 0 && m_Order.getUser1_ID() == 0)))
-				return Msg.parseTranslation(m_Order.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@");
 		}
-		else if (po.get_TableName().equals(MOrderLine.Table_Name) 
-				&& (type == TYPE_BEFORE_CHANGE 
-				|| type == TYPE_BEFORE_NEW)){
-			log.fine(MOrderLine.Table_Name + " -- TYPE_BEFORE_NEW || TYPE_BEFORE_CHANGE");
-			//	Get OrderLine from PO 
-			MOrderLine m_OrderLine = (MOrderLine) po;
-			//	Get Order from OrderLine
-			MOrder order = new MOrder(m_OrderLine.getCtx(), m_OrderLine.getC_Order_ID(), m_OrderLine.get_TableName());
-			// 	It is verified that has been selected a Project or Cost Center.
-			if(order.isSOTrx() == false && 
-				((m_OrderLine.get_Value("C_Project_ID") == null && m_OrderLine.getUser1_ID() == 0) 
-				|| (m_OrderLine.get_Value("C_Project_ID") != null && m_OrderLine.getUser1_ID() != 0)))
-				return Msg.parseTranslation(m_OrderLine.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@");
-		}//		End Jorge Colmenarez
 		return null;
 	} // modelChange
 
@@ -202,6 +176,27 @@ public class INALSA_ModelValidator implements org.compiere.model.ModelValidator 
 			if(po.get_TableName().equals(MPayment.Table_Name)){
 				log.fine(MPayment.Table_Name + " -- TIMING_BEFORE_REVERSECORRECT || TIMING_BEFORE_VOID");
 			}
+		}
+		else if(timing == TIMING_BEFORE_COMPLETE){
+			//	Added by Jorge Colmenarez 2015-06-08 
+			if (po.get_TableName().equals(MOrder.Table_Name)){
+				log.fine(MOrder.Table_Name + " -- TIMING_BEFORE_COMPLETE");
+				//	Get Order from PO 
+				MOrder m_Order = (MOrder) po;
+				// 	It is verified that has been selected a Project or Cost Center.
+				if(m_Order.isSOTrx() == false && 
+					((m_Order.getC_Project_ID() != 0 && m_Order.getUser1_ID() != 0)
+					|| (m_Order.getC_Project_ID() == 0 && m_Order.getUser1_ID() == 0)))
+					return Msg.parseTranslation(m_Order.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@ @For@ @C_Order_ID@ "+ m_Order.getDocumentNo());
+				
+				MOrderLine [] lines = m_Order.getLines();
+				for(MOrderLine line : lines){
+					if(m_Order.isSOTrx() == false && 
+							((line.get_Value("C_Project_ID") == null && line.getUser1_ID() == 0) 
+							|| (line.get_Value("C_Project_ID") != null && line.getUser1_ID() != 0)))
+							return Msg.parseTranslation(line.getCtx(), "@OnlySelect@ @C_Project_ID@ @OR@ @User1_ID@ @For@ @Line@ "+ line.getLine());
+				}
+			}//		End Jorge Colmenarez
 		}
 		return null;
 	}
