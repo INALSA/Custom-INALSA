@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="ANSI_X3.4-1968" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <jardesc>
     <jar path="Custom-INALSA/packages/Custom-INALSA/lib/Custom-INALSA.jar"/>
     <options buildIfNeeded="true" compress="true" descriptionLocation="/Custom-INALSA/JarDesc.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="false" overwrite="false" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
@@ -11,7 +11,7 @@
         </sealing>
     </manifest>
     <selectedElements exportClassFiles="true" exportJavaFiles="false" exportOutputFolder="false">
-        <javaElement handleIdentifier="=Custom-INALSA/patches"/>
         <javaElement handleIdentifier="=Custom-INALSA/base"/>
+        <javaElement handleIdentifier="=Custom-INALSA/patches"/>
     </selectedElements>
 </jardesc>

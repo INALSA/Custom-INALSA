@@ -193,7 +193,9 @@ public class Doc_Inventory extends Doc
 			//	Added By Jorge Colmenarez 2014-08-08 
 			//	Compare value to m_MaskQtyInternalUse if 0 then 
 			//	getChargeAccount else getAccount from Product.
-			if (m_MaskQtyInternalUse.equals(BigDecimal.ZERO)){
+			//	Modified By Jorge Colmenarez 2015-07-16  
+			//	Change Validation when m_MaskQtyInternalUse is Distinct of 0
+			if (!m_MaskQtyInternalUse.equals(BigDecimal.ZERO)){
 				if (m_DocStatus.equals(MInventory.DOCSTATUS_Reversed)
 						&& m_Reversal_ID != 0
 						&& line.getReversalLine_ID() != 0
